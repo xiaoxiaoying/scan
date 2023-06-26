@@ -267,19 +267,19 @@ public class CameraPreview extends ViewGroup {
      * @param attrs the attributes
      */
     public void initializeAttributes(AttributeSet attrs) {
-        TypedArray styledAttributes = getContext().obtainStyledAttributes(attrs, R.styleable.zxing_camera_preview);
+        TypedArray styledAttributes = getContext().obtainStyledAttributes(attrs, R.styleable.CameraPreview);
 
-        int framingRectWidth = (int) styledAttributes.getDimension(R.styleable.zxing_camera_preview_zxing_framing_rect_width, -1);
-        int framingRectHeight = (int) styledAttributes.getDimension(R.styleable.zxing_camera_preview_zxing_framing_rect_height, -1);
+        int framingRectWidth = (int) styledAttributes.getDimension(R.styleable.CameraPreview_zxing_framing_rect_width, -1);
+        int framingRectHeight = (int) styledAttributes.getDimension(R.styleable.CameraPreview_zxing_framing_rect_height, -1);
 
         if (framingRectWidth > 0 && framingRectHeight > 0) {
             this.framingRectSize = new Size(framingRectWidth, framingRectHeight);
         }
 
-        this.useTextureView = styledAttributes.getBoolean(R.styleable.zxing_camera_preview_zxing_use_texture_view, true);
+        this.useTextureView = styledAttributes.getBoolean(R.styleable.CameraPreview_zxing_use_texture_view, true);
 
         // See zxing_attrs.xml for the enum values
-        int scalingStrategyNumber = styledAttributes.getInteger(R.styleable.zxing_camera_preview_zxing_preview_scaling_strategy, -1);
+        int scalingStrategyNumber = styledAttributes.getInteger(R.styleable.CameraPreview_zxing_preview_scaling_strategy, -1);
         if (scalingStrategyNumber == 1) {
             previewScalingStrategy = new CenterCropStrategy();
         } else if (scalingStrategyNumber == 2) {
@@ -319,7 +319,13 @@ public class CameraPreview extends ViewGroup {
     public void addStateListener(StateListener listener) {
         stateListeners.add(listener);
     }
-
+    /**
+     * 移除监听
+     * @param listener
+     */
+    public void removeStateListener(StateListener listener) {
+        stateListeners.remove(listener);
+    }
     private final StateListener fireState = new StateListener() {
         @Override
         public void previewSized() {

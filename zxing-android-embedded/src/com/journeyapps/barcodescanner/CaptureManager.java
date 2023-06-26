@@ -27,6 +27,7 @@ import com.google.zxing.client.android.BeepManager;
 import com.google.zxing.client.android.InactivityTimer;
 import com.google.zxing.client.android.Intents;
 import com.google.zxing.client.android.R;
+import com.journeyapps.barcodescanner.listener.OnScanCodeCallback;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -38,10 +39,10 @@ import java.util.Map;
  * Manages barcode scanning for a CaptureActivity. This class may be used to have a custom Activity
  * (e.g. with a customized look and feel, or a different superclass), but not the barcode scanning
  * process itself.
- *
+ * <p>
  * This is intended for an Activity that is dedicated to capturing a single barcode and returning
  * it via setResult(). For other use cases, use DefaultBarcodeScannerView or BarcodeView directly.
- *
+ * <p>
  * The following is managed by this class:
  * - Orientation lock
  * - InactivityTimer
@@ -60,7 +61,7 @@ public class CaptureManager {
     private int orientationLock = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
     private static final String SAVED_ORIENTATION_LOCK = "SAVED_ORIENTATION_LOCK";
     private boolean returnBarcodeImagePath = false;
-
+    private OnScanCodeCallback onScanCodeCallback;
     private boolean showDialogIfMissingCameraPermission = true;
     private String missingCameraPermissionDialogMessage = "";
 
@@ -138,7 +139,7 @@ public class CaptureManager {
     /**
      * Perform initialization, according to preferences set in the intent.
      *
-     * @param intent the intent containing the scanning preferences
+     * @param intent             the intent containing the scanning preferences
      * @param savedInstanceState saved state, containing orientation lock
      */
     public void initializeFromIntent(Intent intent, Bundle savedInstanceState) {
@@ -251,11 +252,12 @@ public class CaptureManager {
 
     /**
      * Call from Activity#onRequestPermissionsResult
-     * @param requestCode The request code passed in {@link androidx.core.app.ActivityCompat#requestPermissions(Activity, String[], int)}.
-     * @param permissions The requested permissions.
+     *
+     * @param requestCode  The request code passed in {@link androidx.core.app.ActivityCompat#requestPermissions(Activity, String[], int)}.
+     * @param permissions  The requested permissions.
      * @param grantResults The grant results for the corresponding permissions
-     *     which is either {@link android.content.pm.PackageManager#PERMISSION_GRANTED}
-     *     or {@link android.content.pm.PackageManager#PERMISSION_DENIED}. Never null.
+     *                     which is either {@link android.content.pm.PackageManager#PERMISSION_GRANTED}
+     *                     or {@link android.content.pm.PackageManager#PERMISSION_DENIED}. Never null.
      */
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         if (requestCode == cameraPermissionReqCode) {
@@ -302,7 +304,7 @@ public class CaptureManager {
     /**
      * Create a intent to return as the Activity result.
      *
-     * @param rawResult the BarcodeResult, must not be null.
+     * @param rawResult        the BarcodeResult, must not be null.
      * @param barcodeImagePath a path to an exported file of the Barcode Image, can be null.
      * @return the Intent
      */
@@ -370,7 +372,8 @@ public class CaptureManager {
     }
 
     private void finish() {
-        activity.finish();
+        if (onScanCodeCallback == null || onScanCodeCallback.isFinishActivity())
+            activity.finish();
     }
 
     protected void closeAndFinish() {
@@ -398,6 +401,8 @@ public class CaptureManager {
     }
 
     protected void returnResult(BarcodeResult rawResult) {
+        if (onScanCodeCallback != null)
+            onScanCodeCallback.onScanResult(rawResult.toString());
         Intent intent = resultIntent(rawResult, getBarcodeImagePath(rawResult));
         activity.setResult(Activity.RESULT_OK, intent);
         closeAndFinish();
@@ -451,5 +456,9 @@ public class CaptureManager {
     public void setShowMissingCameraPermissionDialog(boolean visible, String message) {
         showDialogIfMissingCameraPermission = visible;
         missingCameraPermissionDialogMessage = message != null ? message : "";
+    }
+
+    public void setOnScanCodeCallback(OnScanCodeCallback callback) {
+        this.onScanCodeCallback = callback;
     }
 }
