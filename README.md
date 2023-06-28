@@ -36,7 +36,7 @@ dependencies {
 
 By default, only SDK 24+ will work, even though the library specifies 19 as the minimum version.
 
-For SDK versions 19+, one of the changes changes below are required.
+For SDK versions 19+, one of the changes below are required.
 Some older SDK versions below 19 may work, but this is not tested or supported.
 
 ### Option 1. Downgrade zxing:core to 3.3.0
@@ -172,11 +172,13 @@ try {
 } catch(Exception e) {
 
 }
-
-No customization of the image is currently supported, including changing colors or padding. If you
-require more customization, copy and modify the source for the encoder.
-
 ```
+
+To customize the generated barcode image, use the `setBackgroundColor` and `setForegroundColor` functions of the
+`BarcodeEncoder` class with a [`@ColorInt`](https://developer.android.com/reference/androidx/annotation/ColorInt)
+value to update the background and foreground colors of the barcode respectively. By default, the barcode has a
+white background and black foreground.
+
 
 ### Changing the orientation
 
@@ -238,7 +240,7 @@ You can then use your local version by specifying in your `build.gradle` file:
 
 Licensed under the [Apache License 2.0][7]
 
-	Copyright (C) 2012-201 ZXing authors, Journey Mobile
+	Copyright (C) 2012-2022 ZXing authors, Journey Mobile
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
