@@ -15,15 +15,17 @@
  */
 package com.journeyapps.barcodescanner
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
 import android.view.View
+import android.view.animation.LinearInterpolator
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import com.google.zxing.ResultPoint
 import com.google.zxing.client.android.R
 import com.journeyapps.barcodescanner.DecoratedBarcodeView.Companion.dipToPix
-import java.util.*
 
 /**
  * This view is overlaid on top of the camera preview. It adds the viewfinder rectangle and partial
@@ -57,7 +59,20 @@ open class ViewfinderView @JvmOverloads constructor(
 
     private var strokeWidth: Int = context.dipToPix(2)
 
-    private var scannerAlpha = 0
+    private var lineBitmap: Bitmap? = null
+    private var lineHeight: Int = 0
+    private val lineRect = Rect()
+    private val scanLineRect = Rect()
+    private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    /**
+     * 扫描线的位置
+     */
+    private var lineTop: Int = 0
+    private var lineAlpha: Int = 255
+
+    private var valueAnimator: ValueAnimator? = null
+
 
     private var possibleResultPoints = ArrayList<ResultPoint>(MAX_RESULT_POINTS)
     private var lastPossibleResultPoints = ArrayList<ResultPoint>(MAX_RESULT_POINTS)
@@ -136,73 +151,44 @@ open class ViewfinderView @JvmOverloads constructor(
         } else {
 
             drawFourCorners(canvas, frame)
-
-            // If wanted, draw a red "laser scanner" line through the middle to show decoding is active
-            if (laserVisibility) {
-                paint.color = laserColor
-                paint.alpha = SCANNER_ALPHA[scannerAlpha]
-                scannerAlpha = (scannerAlpha + 1) % SCANNER_ALPHA.size
-                val middle = frame.height() / 2 + frame.top
-                canvas.drawRect(
-                    (frame.left + 2).toFloat(),
-                    (middle - 1).toFloat(),
-                    (frame.right - 1).toFloat(),
-                    (middle + 2).toFloat(),
-                    paint
-                )
-            }
-            val scaleX = width / previewSize!!.width.toFloat()
-            val scaleY = height / previewSize!!.height.toFloat()
-
-            // draw the last possible result points
-            if (lastPossibleResultPoints.isNotEmpty()) {
-                paint.alpha = CURRENT_POINT_OPACITY / 2
-                paint.color = resultPointColor
-                val radius = POINT_SIZE / 2.0f
-
-                lastPossibleResultPoints.forEach {
-                    canvas.drawCircle(
-                        it.x * scaleX,
-                        it.y * scaleY,
-                        radius, paint
-                    )
-                }
-                lastPossibleResultPoints.clear()
+            scanLineRect.set(frame.left, frame.top, frame.right, frame.bottom)
+            if (lineBitmap != null) {
+                lineRect.set(frame.left, lineTop, frame.right, lineTop + lineHeight)
+                linePaint.alpha = lineAlpha
+                canvas.drawBitmap(lineBitmap!!, null, lineRect, linePaint)
             }
 
-            // draw current possible result points
-            if (possibleResultPoints.isNotEmpty()) {
-                paint.alpha = CURRENT_POINT_OPACITY
-                paint.color = resultPointColor
-
-                possibleResultPoints.forEach {
-                    canvas.drawCircle(
-                        it.x * scaleX,
-                        it.y * scaleY,
-                        POINT_SIZE.toFloat(),
-                        paint
-                    )
-                }
-
-
-                // swap and clear buffers
-                val temp = possibleResultPoints
-                possibleResultPoints = lastPossibleResultPoints
-                lastPossibleResultPoints = temp
-                possibleResultPoints.clear()
-            }
-
-            // Request another update at the animation interval, but only repaint the laser line,
-            // not the entire viewfinder mask.
-            postInvalidateDelayed(
-                ANIMATION_DELAY,
-                frame.left - POINT_SIZE,
-                frame.top - POINT_SIZE,
-                frame.right + POINT_SIZE,
-                frame.bottom + POINT_SIZE
-            )
+            startAnim()
         }
     }
+
+    private fun startAnim() {
+        if (valueAnimator != null) {
+            return
+        }
+        valueAnimator = ValueAnimator.ofInt(scanLineRect.top, scanLineRect.bottom)
+        valueAnimator?.repeatCount = ValueAnimator.INFINITE
+        valueAnimator?.repeatMode = ValueAnimator.RESTART
+        valueAnimator?.duration = 3000
+        valueAnimator?.interpolator = LinearInterpolator()
+        valueAnimator?.addUpdateListener {
+            it ?: return@addUpdateListener
+            val value = it.animatedValue
+            if (value is Int) {
+                lineTop = value
+                val startHideHeight = scanLineRect.height() / 6
+                lineAlpha = if ((scanLineRect.bottom - lineTop) <= startHideHeight) {
+                    ((scanLineRect.bottom - lineTop) / startHideHeight.toDouble() * 255).toInt()
+                } else {
+                    255
+                }
+                postInvalidate()
+            }
+
+        }
+        valueAnimator?.start()
+    }
+
 
     /**
      * 绘制四个角
@@ -217,8 +203,8 @@ open class ViewfinderView @JvmOverloads constructor(
         val frameWidth = frame.width()
         val frameHeight = frame.height()
 
-        val cornersHLength = frameWidth / 4
-        val cornersVLength = frameHeight / 4
+        val cornersHLength = frameWidth / 8
+        val cornersVLength = frameHeight / 8
 
         val leftTopX = frame.left + strokeWidth / 2f
         val leftTopY = frame.top + strokeWidth / 2f
@@ -276,7 +262,7 @@ open class ViewfinderView @JvmOverloads constructor(
         val resultBitmap = resultBitmap
         this.resultBitmap = null
         resultBitmap?.recycle()
-        invalidate()
+        postInvalidate()
     }
 
     /**
@@ -298,9 +284,17 @@ open class ViewfinderView @JvmOverloads constructor(
         if (possibleResultPoints.size < MAX_RESULT_POINTS) possibleResultPoints.add(point)
     }
 
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        if (visibility == VISIBLE) {
+            valueAnimator?.start()
+        } else {
+            valueAnimator?.cancel()
+        }
+    }
+
 
     companion object {
-        private const val TAG = "FINDER"
         private val SCANNER_ALPHA = intArrayOf(0, 64, 128, 192, 255, 192, 128, 64)
         private const val ANIMATION_DELAY = 80L
         private const val CURRENT_POINT_OPACITY = 0xA0
@@ -339,6 +333,18 @@ open class ViewfinderView @JvmOverloads constructor(
             R.styleable.ViewfinderView_zxing_viewfinder_laser_visibility,
             true
         )
+        var lineDrawable = attributes.getDrawable(R.styleable.ViewfinderView_zxing_line_drawable)
+        if (lineDrawable == null) {
+            lineDrawable = ContextCompat.getDrawable(context, R.drawable.scan_wechatline)
+        }
+        val config =
+            if (lineDrawable?.opacity != PixelFormat.OPAQUE) Bitmap.Config.ARGB_8888 else Bitmap.Config.RGB_565
+        lineBitmap = lineDrawable?.toBitmap(
+            lineDrawable.intrinsicWidth,
+            lineDrawable.intrinsicHeight,
+            config
+        )
+        lineHeight = lineDrawable?.intrinsicHeight ?: 0
         attributes.recycle()
 
     }

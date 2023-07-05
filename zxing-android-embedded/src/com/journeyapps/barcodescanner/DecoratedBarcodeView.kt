@@ -263,7 +263,6 @@ open class DecoratedBarcodeView @JvmOverloads constructor(
             val wm = context
                 .getSystemService(Context.WINDOW_SERVICE) as WindowManager
             val outMetrics = DisplayMetrics()
-
             wm.defaultDisplay.getMetrics(outMetrics)
             return if (isWidth) outMetrics.widthPixels else outMetrics.heightPixels
         }
