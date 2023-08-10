@@ -28,7 +28,7 @@ object CodeCreator {
      * @return bitmap
      */
     @JvmStatic
-    fun createQRCode(text: String?, size: Int = 150): Bitmap? {
+    fun createQRCode(text: String?, size: Int = 150, margin: Int = 1): Bitmap? {
 
         text ?: return null
 
@@ -36,7 +36,7 @@ object CodeCreator {
 
             val bitMatrix = QRCodeWriter().encode(
                 text,
-                BarcodeFormat.QR_CODE, size, size, getHints()
+                BarcodeFormat.QR_CODE, size, size, getHints(margin)
             )
             val pixels = IntArray(size * size)
             for (y in 0 until size) {
@@ -84,12 +84,12 @@ object CodeCreator {
     @JvmStatic
     fun createQRCodeWithLogo(
         text: String?,
-        size: Int ,
+        size: Int,
         bitmap: Bitmap
     ): Bitmap? {
         var mBitmap = bitmap
         return try {
-           val imageHalfwidth = size / 10
+            val imageHalfwidth = size / 10
             val hints = Hashtable<EncodeHintType, Any?>()
             hints[EncodeHintType.CHARACTER_SET] = "utf-8"
             /*
@@ -122,7 +122,8 @@ object CodeCreator {
             for (y in 0 until size) {
                 for (x in 0 until size) {
                     if (x > halfW - imageHalfwidth && x < halfW + imageHalfwidth &&
-                        y > halfH - imageHalfwidth && y < halfH + imageHalfwidth) {
+                        y > halfH - imageHalfwidth && y < halfH + imageHalfwidth
+                    ) {
                         //该位置用于存放图片信息
                         //记录图片每个像素信息
                         pixels[y * width + x] = mBitmap.getPixel(
@@ -158,7 +159,7 @@ object CodeCreator {
      * @param logoBm   二维码中心的Logo图标（可以为null）
      * @return 合成后的bitmap
      */
-    fun createQRImage(context: Context, data: String?, logoBm: Bitmap?): Bitmap? {
+    fun createQRImage(context: Context, data: String?, logoBm: Bitmap?, margin: Int = 1): Bitmap? {
         try {
             if (data == null || "" == data) {
                 return null
@@ -170,7 +171,13 @@ object CodeCreator {
 
             // 图像数据转换，使用了矩阵转换
             val bitMatrix =
-                QRCodeWriter().encode(data, BarcodeFormat.QR_CODE, widthPix, heightPix, getHints())
+                QRCodeWriter().encode(
+                    data,
+                    BarcodeFormat.QR_CODE,
+                    widthPix,
+                    heightPix,
+                    getHints(margin)
+                )
             val pixels = IntArray(widthPix * heightPix)
             // 下面这里按照二维码的算法，逐个生成二维码的图片，
             // 两个for循环是图片横列扫描的结果
@@ -248,14 +255,14 @@ object CodeCreator {
     }
 
     @JvmStatic
-    fun getHints(): HashMap<EncodeHintType, Any?> {
+    fun getHints(margin: Int = 1): HashMap<EncodeHintType, Any?> {
         //配置参数
         val hints = HashMap<EncodeHintType, Any?>()
         hints[EncodeHintType.CHARACTER_SET] = "utf-8"
         //容错级别
         hints[EncodeHintType.ERROR_CORRECTION] = ErrorCorrectionLevel.H
         //设置空白边距的宽度
-        hints[EncodeHintType.MARGIN] = 1 //default is 4
+        hints[EncodeHintType.MARGIN] = margin //default is 4
         return hints
     }
 }
